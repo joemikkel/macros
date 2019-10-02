@@ -1,0 +1,77 @@
+"""
+Macro that automatically aliases parameter entries in a spreadsheet.
+The label of the spreadsheet is given by the SHEET_NAME var below.
+
+The sheet should have the following format:
+   |       A        |  B  |
+ --------------------------
+ 1 |Param1Alias     |   12|
+ -------------------------
+ 2 |OtherParamAlias |  2.7|
+ --------------------------
+ 3 |thirdparamalias | 1000|
+ --------------------------
+        . . .
+
+Column A should have parameter names
+Column B should have parameter values
+Stops on the first blank row it encounters
+
+Running this macro on this sheet will result in B1 having the alias "Param1Alias",
+B2 -> "OtherParamAlias" etc.
+
+Can be re-run many times.
+"""
+import FreeCAD
+
+SHEET_NAME = "D"
+
+Sheet = None
+
+# Find the sheet with the given name.
+for an_object in App.ActiveDocument.Objects:
+    if an_object.TypeId == "Spreadsheet::Sheet" and an_object.Label == SHEET_NAME:
+        Sheet = an_object
+        break
+if Sheet is None:
+    raise Exception(f"No sheet named {SHEET_NAME} found")
+
+# Clear any existing aliases in the sheet. Without this, sometimes Expressions in the sheet
+# generate errors that crash the whole script.
+current_row = 1
+while True:
+    # get current row cells
+    name_cell = f"A{current_row}"
+    value_cell = f"B{current_row}"
+    # try to get the name
+    try:
+        label = Sheet.get(name_cell).replace(" ", "_")
+    except ValueError:
+        break  # empty cell means end of list
+    # clear any existing aliases
+    print(f"Clearing alias in row {current_row}")
+    Sheet.setAlias(value_cell, "")
+    current_row += 1
+
+App.ActiveDocument.recompute()
+
+# Then reassign new aliases
+current_row = 1
+while True:
+    # get current row cells
+    name_cell = f"A{current_row}"
+    value_cell = f"B{current_row}"
+    # try to get the name
+    try:
+        label = Sheet.get(name_cell).replace(" ", "_")
+    except ValueError:
+        break  # empty cell means end of list
+    print(f"Setting alias for row {current_row}")
+    try:
+        Sheet.setAlias(value_cell, label)
+    except ValueError as e:
+        print(f"This may be an invalid alias: {label}")
+        raise e
+    current_row += 1
+
+App.ActiveDocument.recompute()
